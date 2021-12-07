@@ -154,4 +154,5 @@ cython_debug/
 
 detect.py
 .detect.py
-!/test.py
+test.py
+.test.py
