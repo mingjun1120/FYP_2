@@ -7,6 +7,7 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
+import streamlit as st
 
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
@@ -169,6 +170,7 @@ def detect(opt, save_img=False):
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
+@st.cache(show_spinner=False)
 def main_detect2():
     cwd_path = os.getcwd() + '\\'
     parser = argparse.ArgumentParser()
