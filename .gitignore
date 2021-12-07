@@ -153,6 +153,5 @@ dmypy.json
 cython_debug/
 
 detect.py
-.detect.py
 test.py
-.test.py
+.idea/
