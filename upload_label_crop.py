@@ -40,11 +40,11 @@ def main_upload_label_crop():
         st.markdown("***")
 
         # Rum object detection for the images converted from the uploaded PDF file
-        with st.spinner(text="Labeling the images..."):
+        with st.spinner(text="Annotating and cropping certain parts in each image..."):
             # os.popen(f'python detect.py --weights best.pt --img-size 416 --conf-thres 0.5 --source {cwd_path}PDF_Images')
             main_detect2()
 
         # Display the labeling results for an image (first page of the uploaded PDF file)
-        st.markdown(f'**Example labeling results for the first page of the uploaded PDF file:**')
-        image = Image.open(f"{cwd_path}Results/page1.jpg")
-        st.image(image, caption=f"Detection results for the first page of the uploaded PDF file", use_column_width='auto')
+        st.markdown(f'**An example of annotated results on the first page of the uploaded PDF file:**')
+        image = Image.open(f"{cwd_path}Detection_Results/page1.jpg")
+        st.image(image, caption=f"Annotated results for the first page of the uploaded PDF file", use_column_width='auto')

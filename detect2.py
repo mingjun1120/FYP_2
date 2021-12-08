@@ -170,7 +170,6 @@ def detect(opt, save_img=False):
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
-@st.cache(show_spinner=False)
 def main_detect2():
     cwd_path = os.getcwd() + '\\'
     parser = argparse.ArgumentParser()
@@ -187,7 +186,7 @@ def main_detect2():
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--update', action='store_true', help='update all models')
-    parser.add_argument('--project', default='Results', help='save results to project/name')
+    parser.add_argument('--project', default='Detection_Results', help='save results to project/name')
     parser.add_argument('--name', default='Results', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     opt = parser.parse_args()
