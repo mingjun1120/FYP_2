@@ -175,7 +175,7 @@ def main_detect2():
     parser.add_argument('--weights', nargs='+', type=str, default='best.pt', help='model.pt path(s)') # default='yolov5s.pt'
     parser.add_argument('--source', type=str, default=f'{cwd_path}PDF_Images', help='source')  # file/folder, 0 for webcam.  default='data/images'
     parser.add_argument('--img-size', type=int, default=416, help='inference size (pixels)') # default=640
-    parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold') # default=0.25
+    parser.add_argument('--conf-thres', type=float, default=0.4, help='object confidence threshold') # default=0.25
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='display results')
