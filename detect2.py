@@ -105,6 +105,8 @@ def detect(opt, save_img=False):
 
                 # Write results
                 counter = 0
+                imgSortDict = {}
+                imgSortDictPath = {}
                 for *xyxy, conf, cls in reversed(det):
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
@@ -125,19 +127,30 @@ def detect(opt, save_img=False):
                         class_index = cls
                         object_name = names[int(cls)]
 
-                        print(f'\nBounding box: {x1, y1, x2, y2}')
+                        print(f'\nBounding box: {x1, y1, x2, y2} -> y1: {y1, type(y1)}')
                         print(f'Class index: {class_index}')
                         print(f'Detected object name: {object_name}')
                         print(f'image_counter: {image_counter}')
-                        print(f'counter: {counter}')
+                        print(f'counter: {counter+1}')
 
                         crop_img = im0[y1:y2, x1:x2]
-                        cv2.imwrite(f'Crop_Images/{object_name}{counter + 1}_page{image_counter + 1}.jpg', crop_img)
+
+                        if object_name == 'Row':
+                            imgSortDict[f'{object_name}_page{image_counter + 1}_{counter + 1}.jpg'] = y1
+                            imgSortDictPath[y1] = crop_img
+                        else:
+                            cv2.imwrite(f'Crop_Images/{object_name}_page{image_counter + 1}_{counter + 1}.jpg', crop_img)
 
                     counter += 1
+                sorted_row_list = list(dict(sorted(imgSortDict.items(), key=lambda item: item[1])).keys()) # sort by values
+                sorted_rowImg_list = list(dict(sorted(imgSortDictPath.items(), key=lambda item: item[0])).values()) # sort by keys
+                for counter, (cropImg, imgName) in enumerate(zip(sorted_rowImg_list, sorted_row_list)):
+                    str_to_be_replaced = imgName[imgName.rfind('_'):]
+                    imgName = imgName.replace(f'{str_to_be_replaced}', f'_{counter + 1}.jpg')
+                    cv2.imwrite(f'Crop_Images/{imgName}', cropImg)
 
             # Print time (inference + NMS)
-            print(f'{s}Done. ({t2 - t1:.3f}s)')
+            print(f'{s}Done. ({t2 - t1:.3f}s)\n')
 
             # Stream results
             if view_img:

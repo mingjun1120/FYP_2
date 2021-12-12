@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import glob
 import pandas as pd
+import re
 
 
 def noise_removal(image):
@@ -56,14 +57,14 @@ def save_header_content(headers_content, cwd_path):
         punc_num = len(header_dict[key])
         punc_num_ori = punc_num
         for x in value:
-            if ':' in x:
+            if ':' in x or ';' in x:
                 punc_num -= 1
 
         temp_str = None
         temp_str2 = None
         if punc_num == 0 or punc_num < punc_num_ori:
             for count, x in enumerate(value):
-                if ':' in x:
+                if ':' in x or ';' in x:
                     lst = x.split(':')
                     temp_str = lst[0].strip()
                     new_dict[temp_str] = lst[1].strip()
@@ -106,13 +107,14 @@ def main_preprocess_ocr():
         # Read the image
         image = cv2.imread(image_path)
 
-        if 'table' not in os.path.basename(image_path).lower():
+        # Check if the image name is start with 'Header' or header followed by a digit. If return not None, means true. Otherwise, false.
+        if re.search(pattern='^((H|h)eader\d)', string=os.path.basename(image_path).lower()) is not None:
             text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 4')
 
             headers_content.append([" ".join(x.split()) for x in text.splitlines() if any(map(str.isdigit, x)) or any(map(str.isalpha, x))])
         # else:
         #     text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 6')
 
-    # Save the header contents extracted from pytesseract
-    save_header_content(headers_content, cwd_path)
+    # # Save the header contents extracted from pytesseract
+    # save_header_content(headers_content, cwd_path)
 

@@ -13,8 +13,8 @@ def main():
     main_upload_label_crop()
 
     # Preprocess the image and do OCR
-    with st.spinner('Preprocessing and OCRing the image...'):
-        main_preprocess_ocr()
+    # with st.spinner('Preprocessing and OCRing the image...'):
+    #     main_preprocess_ocr()
 
 
 # Press the green button in the gutter to run the script.
