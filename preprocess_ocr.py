@@ -1,3 +1,5 @@
+import shutil
+import string
 import streamlit as st
 import os
 from PIL import Image
@@ -7,6 +9,7 @@ import numpy as np
 import glob
 import pandas as pd
 import re
+import sys
 
 
 def noise_removal(image):
@@ -39,52 +42,115 @@ def preprocess(image_path):
     return cleaned_image
 
 
-def save_header_content(headers_content, cwd_path):
-    header_df = pd.DataFrame(data=headers_content)
-    header_df.drop_duplicates(subset=0, keep="first", inplace=True, ignore_index=True)
+# def save_header_content(headers_content, cwd_path):
+#     header_df = pd.DataFrame(data=headers_content)
+#     header_df.drop_duplicates(subset=0, keep="first", inplace=True, ignore_index=True)
+#
+#     '''Check the existence of ':' for each string'''
+#     header_dict = {}
+#     for index, each_header_contents in enumerate(header_df.to_numpy()):
+#         header_dict[index + 1] = list(each_header_contents)
+#
+#     for key, value in header_dict.items():
+#         new_dict = {}
+#         # Remove None values in the list
+#         value = [x.strip() for x in value if x is not None]  # list(filter(None.__ne__, value))
+#
+#         # Check the existence of ':' for each string
+#         punc_num = len(header_dict[key])
+#         punc_num_ori = punc_num
+#         for x in value:
+#             if ':' in x or ';' in x:
+#                 punc_num -= 1
+#
+#         temp_str = None
+#         temp_str2 = None
+#         if punc_num == 0 or punc_num < punc_num_ori:
+#             for count, x in enumerate(value):
+#                 if ':' in x or ';' in x:
+#                     lst = x.split(':')
+#                     temp_str = lst[0].strip()
+#                     new_dict[temp_str] = lst[1].strip()
+#                 else:
+#                     if count > 0:
+#                         temp_str2 = new_dict[temp_str]
+#                         new_dict[temp_str] = f'{temp_str2}\n{x}'
+#
+#             for new_dict_key, new_dict_val in new_dict.items():
+#                 new_dict[new_dict_key] = [new_dict_val]
+#             pd.DataFrame(data=new_dict).to_csv(f'{cwd_path}Results_for_user\\Header{key}.csv', index=False)
+#         else:
+#             if os.path.isfile(f"{cwd_path}Results_for_user\\Header{key}.txt"):
+#                 open(f'{cwd_path}Results_for_user\\Header{key}.txt', 'w').close()
+#
+#             with open(f'{cwd_path}Results_for_user\\Header{key}.txt', 'a') as f:
+#                 for line in value:
+#                     if type(line) is str:
+#                         f.write(line)
+#                         f.write('\n')
 
-    '''Check the existence of ':' for each string'''
-    header_dict = {}
-    for index, each_header_contents in enumerate(header_df.to_numpy()):
-        header_dict[index + 1] = list(each_header_contents)
 
-    for key, value in header_dict.items():
-        new_dict = {}
-        # Remove None values in the list
-        value = [x.strip() for x in value if x is not None]  # list(filter(None.__ne__, value))
+def mark_region(image_path):
+    image = cv2.imread(image_path)
 
-        # Check the existence of ':' for each string
-        punc_num = len(header_dict[key])
-        punc_num_ori = punc_num
-        for x in value:
-            if ':' in x or ';' in x:
-                punc_num -= 1
+    # define threshold of regions to ignore
+    THRESHOLD_REGION_IGNORE = 40
 
-        temp_str = None
-        temp_str2 = None
-        if punc_num == 0 or punc_num < punc_num_ori:
-            for count, x in enumerate(value):
-                if ':' in x or ';' in x:
-                    lst = x.split(':')
-                    temp_str = lst[0].strip()
-                    new_dict[temp_str] = lst[1].strip()
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    # thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,11,30)
+    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV + cv2.THRESH_BINARY,
+                                   11, 30)
+
+    # Dilate to combine adjacent text contours
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+    dilate = cv2.dilate(thresh, kernel, iterations=4)
+
+    # Find contours, highlight text areas, and extract ROIs
+    cnts = cv2.findContours(dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+
+    line_items_coordinates = []
+    for c in cnts:
+        # area = cv2.contourArea(c)
+        x, y, w, h = cv2.boundingRect(c)
+
+        if w < THRESHOLD_REGION_IGNORE or h < THRESHOLD_REGION_IGNORE:
+            continue
+
+        image = cv2.rectangle(image, (x, y), (x + w, y + h), color=(255, 0, 255), thickness=3)
+        line_items_coordinates.append([(x, y), (x + w, y + h)])
+
+    # Sort the coordinates in the 'line_items_coordinates' list
+    sort_coordinates_dict = {}
+    for each_bounding_box in line_items_coordinates:
+        sort_coordinates_dict[each_bounding_box[0][0]] = each_bounding_box
+    line_items_coordinates = list(
+        dict(sorted(sort_coordinates_dict.items(), key=lambda item: item[0])).values())  # sort by keys
+
+    return image, line_items_coordinates
+
+
+def created_row_headers(cwd_path):
+    rowHeaderLst = []
+    for image_path in glob.glob(f'{cwd_path}Preprocessed_Crop_Images\\*.jpg'):
+        if 'HeaderRow_' in os.path.basename(image_path):
+            img = cv2.imread(f'{image_path}')
+            text = pytesseract.image_to_string(image=img, lang='eng', config='--psm 4 --oem 3')
+            rowHeaderLst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None][1].split()
+
+            for count, x in enumerate(rowHeaderLst):
+                if x == 'Date':
+                    rowHeaderLst[count - 1] = rowHeaderLst.pop(count - 1) + ' ' + x
+                elif x == 'No.':
+                    rowHeaderLst[count - 1] = rowHeaderLst.pop(count - 1) + ' ' + x
+                elif x == 'Credit':
+                    rowHeaderLst[count - 1] = rowHeaderLst.pop(count - 1) + ' ' + x
                 else:
-                    if count > 0:
-                        temp_str2 = new_dict[temp_str]
-                        new_dict[temp_str] = f'{temp_str2}\n{x}'
+                    pass
+            break
 
-            for new_dict_key, new_dict_val in new_dict.items():
-                new_dict[new_dict_key] = [new_dict_val]
-            pd.DataFrame(data=new_dict).to_csv(f'{cwd_path}Results_for_user\\Header{key}.csv', index=False)
-        else:
-            if os.path.isfile(f"{cwd_path}Results_for_user\\Header{key}.txt"):
-                open(f'{cwd_path}Results_for_user\\Header{key}.txt', 'w').close()
-
-            with open(f'{cwd_path}Results_for_user\\Header{key}.txt', 'a') as f:
-                for line in value:
-                    if type(line) is str:
-                        f.write(line)
-                        f.write('\n')
+    return rowHeaderLst
 
 
 def main_preprocess_ocr():
@@ -94,27 +160,214 @@ def main_preprocess_ocr():
     # Initialize to Tesseract-OCR engine
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
+    # Preprocess the image and saved into "Preprocessed_Crop_Images" folder
     for image_path in glob.glob(f'{cwd_path}Crop_Images\\*.jpg'):
-
         # Preprocess the image
         cleaned_image = preprocess(image_path)
 
         # Save the image
         cv2.imwrite(f'{cwd_path}Preprocessed_Crop_Images\\{os.path.basename(image_path)}', cleaned_image)
 
-    headers_content = []
-    for image_path in glob.glob(f'{cwd_path}Preprocessed_Crop_Images\\*.jpg'):
-        # Read the image
-        image = cv2.imread(image_path)
+    # Create the row headers
+    rowHeaderLst = created_row_headers(cwd_path)
+    if len(rowHeaderLst) == 0 or len(rowHeaderLst) != 6:
+        rowHeaderLst = ['Txn. Date', 'Val. Date', 'Description', 'Cheque No.', 'Debit/Credit', 'Balance']
+
+    saldo_awal = None
+    saldo_awal_val = None
+    startingPage = 1
+    table_row_list = []
+    for image_path in glob.glob(f'{cwd_path}Crop_Images\\*.jpg'):
 
         # Check if the image name is start with 'Header' or header followed by a digit. If return not None, means true. Otherwise, false.
-        if re.search(pattern='^((H|h)eader\d)', string=os.path.basename(image_path).lower()) is not None:
-            text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 4')
+        if re.search(pattern='^((r|R)ow_page\d)', string=os.path.basename(image_path).lower()) is not None:
 
-            headers_content.append([" ".join(x.split()) for x in text.splitlines() if any(map(str.isdigit, x)) or any(map(str.isalpha, x))])
-        # else:
-        #     text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 6')
+            # Mark the region of interest
+            image, line_items_coordinates = mark_region(image_path)
+
+            first_column_val = None
+            second_column_val = None
+            third_column_val = None
+            forth_column_val = None
+            fifth_column_val = None
+            sixth_column_val = None
+
+            for counter, each_image_coord in enumerate(line_items_coordinates, start=1):
+
+                x1, y1 = each_image_coord[0]
+                x2, y2 = each_image_coord[1]
+
+                # Crop the image
+                crop_img = image[y1:y2, x1:x2]
+
+                # Save the image
+                img_path = f'{cwd_path}Test_Image\\{os.path.basename(image_path).replace(".jpg", f"_{counter}.jpg")}'
+                cv2.imwrite(f'{img_path}', crop_img)
+
+                # # Read the image
+                # crop_img = cv2.imread(f'{img_path}')
+
+                # Preprocess the image_path
+                cleaned_image = preprocess(img_path)
+
+                text = pytesseract.image_to_string(image=cleaned_image, lang='msa+ind', config='--psm 6 --oem 3')
+                text2 = pytesseract.image_to_string(image=cleaned_image, lang='msa+ind', config='--psm 4 --oem 3')
+
+                if img_path.endswith('_1.jpg'):
+                    try:
+                        first_column_val = [x for x in text.split() if x == "Total" or re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+                    except IndexError:
+                        first_column_val = [x for x in text2.split() if x == "Total" or re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+
+                elif img_path.endswith('_2.jpg'):
+                    try:
+                        second_column_val = [x for x in text.split() if re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+                    except IndexError:
+                        second_column_val = [x for x in text2.split() if re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+
+                elif img_path.endswith('_3.jpg'):
+                    third_column_val_lst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None]
+                    new_str = ''
+                    for each_val in third_column_val_lst:
+                        new_str += each_val + '\n'
+                    temp = new_str[:-1]
+
+                    if 'saldo awal' in temp.lower():
+                        saldo_awal = 'SALDO AWAL'
+                    else:
+                        third_column_val = temp
+
+                elif img_path.endswith('_4.jpg'):
+                    forth_column_val_lst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None]
+                    new_str = ''
+                    for each_val in forth_column_val_lst:
+                        new_str += each_val + '\n'
+                    temp = new_str[:-1]
+
+                    if saldo_awal is not None and img_path.startswith('Row_page1_1'):
+                        third_column_val = temp
+                    elif saldo_awal is None and 'saldo awal' in temp.lower():
+                        saldo_awal = 'SALDO AWAL'
+                    elif temp.isdecimal() and forth_column_val is None:
+                        forth_column_val = temp
+                    elif (',' in temp or '.' in temp) and fifth_column_val is None:
+                        fifth_column_val = temp
+                    else:
+                        pass
+
+                elif img_path.endswith('_5.jpg'):
+                    fifth_column_val_lst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None]
+                    new_str = ''
+                    for each_val in fifth_column_val_lst:
+                        new_str += each_val + '\n'
+                    temp = new_str[:-1]
+
+                    if forth_column_val is None and temp.isdecimal():
+                        forth_column_val = temp
+                    elif forth_column_val is not None and (',' in temp or '.' in temp) and fifth_column_val is None:
+                        fifth_column_val = temp
+                    elif fifth_column_val is not None and (',' in temp or '.' in temp) and sixth_column_val is None:
+                        sixth_column_val = temp
+                    else:
+                        pass
+
+                elif img_path.endswith('_6.jpg'):
+                    sixth_column_val_lst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None]
+                    new_str = ''
+                    for each_val in sixth_column_val_lst:
+                        new_str += each_val + '\n'
+                    temp = new_str[:-1]
+
+                    if fifth_column_val is None and (',' in temp or '.' in temp):
+                        fifth_column_val = temp
+                    elif fifth_column_val is not None and (',' in temp or '.' in temp) and sixth_column_val is None:
+                        sixth_column_val = temp
+                    else:
+                        pass
+
+                elif img_path.endswith('_7.jpg'):
+                    seventh_column_val_lst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None]
+                    new_str = ''
+                    for each_val in seventh_column_val_lst:
+                        new_str += each_val + '\n'
+                    temp = new_str[:-1]
+
+                    if sixth_column_val is None and (',' in temp or '.' in temp) and forth_column_val is not None:
+                        sixth_column_val = temp
+                    else:
+                        saldo_awal_val = temp
+
+                elif img_path.endswith('_8.jpg'):
+                    eighth_column_val_lst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None]
+                    new_str = ''
+                    for each_val in eighth_column_val_lst:
+                        new_str += each_val + '\n'
+                    temp = new_str[:-1]
+
+                    if sixth_column_val is not None and (',' in temp or '.' in temp) and forth_column_val is not None:
+                        saldo_awal_val = temp
+
+            rowHeaderDict = {rowHeaderLst[0]: first_column_val, rowHeaderLst[1]: second_column_val,
+                             rowHeaderLst[2]: third_column_val, rowHeaderLst[3]: forth_column_val,
+                             rowHeaderLst[4]: fifth_column_val, rowHeaderLst[5]: sixth_column_val}
+
+            # Save each row of data into a dictionary
+            print(rowHeaderDict[rowHeaderLst[5]])
+
+            # Example: the actual filename is "Row_page1_1.jpg" and then becomes "Row_page1"
+            currentPage = os.path.basename(image_path)
+            currentPage = currentPage[:currentPage.rfind('_')]
+            currentPage = int(currentPage.replace('Row_page', ''))
+
+            if currentPage - startingPage == 1:
+                startingPage += 1
+                pd.DataFrame(table_row_list).to_csv(f'{cwd_path}Results_for_user\\Page{startingPage-1}.csv', index=False)
+                table_row_list = []
+                table_row_list.append(rowHeaderDict)
+            else:
+                table_row_list.append(rowHeaderDict)
+
+    # Save the last page of data
+    pd.DataFrame(table_row_list).to_csv(f'{cwd_path}Results_for_user\\Page{startingPage}.csv', index=False)
+
+    if saldo_awal_val is not None and saldo_awal is not None:
+        df1 = pd.read_csv(f'{cwd_path}Results_for_user\\Page1.csv')
+        df1.loc[0] = np.array(['', '', saldo_awal, '', '', saldo_awal_val])
+        df1.to_csv(f'{cwd_path}Results_for_user\\Page1.csv', index=False)
+
+    if os.path.isfile(f"{cwd_path}Results_for_user\\Page1.csv"): # If the file exist
+        st.markdown("***")
+        st.markdown(f'**Example table results for Page 1:**')
+        st.dataframe(pd.read_csv(f'{cwd_path}Results_for_user\\Page1.csv'))
+
+        # Create the zip file for the "Results_for_user" folder
+        shutil.make_archive(base_name=f'{cwd_path}Results_for_user', format='zip', root_dir=f'{cwd_path}Results_for_user')
+
+    with open(f"Results_for_user.zip", "rb") as fp:
+        btn = st.download_button(
+            label="Download Results",
+            data=fp,
+            file_name="Results_for_user.zip",
+            mime="application/zip"
+        )
+
+    shutil.rmtree(f'{cwd_path}Detection_Results')
+
+
+
+
+    # headers_content = []
+    # for image_path in glob.glob(f'{cwd_path}Preprocessed_Crop_Images\\*.jpg'):
+    #     # Read the image
+    #     image = cv2.imread(image_path)
+    #
+    #     # Check if the image name is start with 'Header' or header followed by a digit. If return not None, means true. Otherwise, false.
+    #     if re.search(pattern='^((H|h)eader\d)', string=os.path.basename(image_path).lower()) is not None:
+    #         text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 4')
+    #
+    #         headers_content.append([" ".join(x.split()) for x in text.splitlines() if any(map(str.isdigit, x)) or any(map(str.isalpha, x))])
+    #     elif re.search(pattern='^((r|R)ow_page\d)', string=os.path.basename(image_path).lower()) is not None:
+    #         text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 6')
 
     # # Save the header contents extracted from pytesseract
     # save_header_content(headers_content, cwd_path)
-

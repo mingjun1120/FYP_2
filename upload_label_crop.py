@@ -3,6 +3,7 @@ import os
 from pdf2image import convert_from_path
 from PIL import Image
 from detect2 import main_detect2
+from preprocess_ocr import main_preprocess_ocr
 
 
 def main_upload_label_crop():
@@ -48,3 +49,7 @@ def main_upload_label_crop():
         st.markdown(f'**An example of annotated results on the first page of the uploaded PDF file:**')
         image = Image.open(f"{cwd_path}Detection_Results/page1.jpg")
         st.image(image, caption=f"Annotated results for the first page of the uploaded PDF file", use_column_width='auto')
+
+        # Preprocess the image and do OCR
+        with st.spinner('Preprocessing and OCRing the image...'):
+            main_preprocess_ocr()
