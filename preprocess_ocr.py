@@ -1,15 +1,12 @@
 import shutil
-import string
 import streamlit as st
 import os
-from PIL import Image
 import pytesseract
 import cv2
 import numpy as np
 import glob
 import pandas as pd
 import re
-import sys
 
 
 def noise_removal(image):
@@ -42,54 +39,6 @@ def preprocess(image_path):
     return cleaned_image
 
 
-# def save_header_content(headers_content, cwd_path):
-#     header_df = pd.DataFrame(data=headers_content)
-#     header_df.drop_duplicates(subset=0, keep="first", inplace=True, ignore_index=True)
-#
-#     '''Check the existence of ':' for each string'''
-#     header_dict = {}
-#     for index, each_header_contents in enumerate(header_df.to_numpy()):
-#         header_dict[index + 1] = list(each_header_contents)
-#
-#     for key, value in header_dict.items():
-#         new_dict = {}
-#         # Remove None values in the list
-#         value = [x.strip() for x in value if x is not None]  # list(filter(None.__ne__, value))
-#
-#         # Check the existence of ':' for each string
-#         punc_num = len(header_dict[key])
-#         punc_num_ori = punc_num
-#         for x in value:
-#             if ':' in x or ';' in x:
-#                 punc_num -= 1
-#
-#         temp_str = None
-#         temp_str2 = None
-#         if punc_num == 0 or punc_num < punc_num_ori:
-#             for count, x in enumerate(value):
-#                 if ':' in x or ';' in x:
-#                     lst = x.split(':')
-#                     temp_str = lst[0].strip()
-#                     new_dict[temp_str] = lst[1].strip()
-#                 else:
-#                     if count > 0:
-#                         temp_str2 = new_dict[temp_str]
-#                         new_dict[temp_str] = f'{temp_str2}\n{x}'
-#
-#             for new_dict_key, new_dict_val in new_dict.items():
-#                 new_dict[new_dict_key] = [new_dict_val]
-#             pd.DataFrame(data=new_dict).to_csv(f'{cwd_path}Results_for_user\\Header{key}.csv', index=False)
-#         else:
-#             if os.path.isfile(f"{cwd_path}Results_for_user\\Header{key}.txt"):
-#                 open(f'{cwd_path}Results_for_user\\Header{key}.txt', 'w').close()
-#
-#             with open(f'{cwd_path}Results_for_user\\Header{key}.txt', 'a') as f:
-#                 for line in value:
-#                     if type(line) is str:
-#                         f.write(line)
-#                         f.write('\n')
-
-
 def mark_region(image_path):
     image = cv2.imread(image_path)
 
@@ -99,8 +48,7 @@ def mark_region(image_path):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     # thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,11,30)
-    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV + cv2.THRESH_BINARY,
-                                   11, 30)
+    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV + cv2.THRESH_BINARY, 11, 30)
 
     # Dilate to combine adjacent text contours
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
@@ -312,7 +260,13 @@ def main_preprocess_ocr():
                              rowHeaderLst[4]: fifth_column_val, rowHeaderLst[5]: sixth_column_val}
 
             # Save each row of data into a dictionary
-            print(rowHeaderDict[rowHeaderLst[5]])
+            print(f'\nTxn. Date: {rowHeaderDict[rowHeaderLst[0]]}')
+            print(f'Val. Date: {rowHeaderDict[rowHeaderLst[1]]}')
+            print(f'Description: {rowHeaderDict[rowHeaderLst[2]]}')
+            print(f'Cheque No.: {rowHeaderDict[rowHeaderLst[3]]}')
+            print(f'Debit/Credit: {rowHeaderDict[rowHeaderLst[4]]}')
+            print(f'Balance: {rowHeaderDict[rowHeaderLst[5]]}')
+            print("--------------------------------------------------\n")
 
             # Example: the actual filename is "Row_page1_1.jpg" and then becomes "Row_page1"
             currentPage = os.path.basename(image_path)
@@ -343,6 +297,8 @@ def main_preprocess_ocr():
         # Create the zip file for the "Results_for_user" folder
         shutil.make_archive(base_name=f'{cwd_path}Results_for_user', format='zip', root_dir=f'{cwd_path}Results_for_user')
 
+    shutil.rmtree(f'{cwd_path}Detection_Results')
+
     with open(f"Results_for_user.zip", "rb") as fp:
         btn = st.download_button(
             label="Download Results",
@@ -350,8 +306,6 @@ def main_preprocess_ocr():
             file_name="Results_for_user.zip",
             mime="application/zip"
         )
-
-    shutil.rmtree(f'{cwd_path}Detection_Results')
 
 
 
