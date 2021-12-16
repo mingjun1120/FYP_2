@@ -5,12 +5,9 @@ from upload_label_crop import main_upload_label_crop
 import streamlit as st
 from streamlit import cli as stcli
 import sys
-import os
 
 
 def main():
-    # Set current working directory path
-    cwd_path = os.getcwd() + '\\'
 
     # Upload an PDF, label some parts in an image and crop them
     main_upload_label_crop()
