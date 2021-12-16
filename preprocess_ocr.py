@@ -73,8 +73,7 @@ def mark_region(image_path):
     sort_coordinates_dict = {}
     for each_bounding_box in line_items_coordinates:
         sort_coordinates_dict[each_bounding_box[0][0]] = each_bounding_box
-    line_items_coordinates = list(
-        dict(sorted(sort_coordinates_dict.items(), key=lambda item: item[0])).values())  # sort by keys
+    line_items_coordinates = list(dict(sorted(sort_coordinates_dict.items(), key=lambda item: item[0])).values())  # sort by keys
 
     return image, line_items_coordinates
 
