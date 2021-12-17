@@ -151,26 +151,36 @@ def main_preprocess_ocr():
                 img_path = f'{cwd_path}Test_Image\\{os.path.basename(image_path).replace(".jpg", f"_{counter}.jpg")}'
                 cv2.imwrite(f'{img_path}', crop_img)
 
-                # # Read the image
-                # crop_img = cv2.imread(f'{img_path}')
+                # Read the image
+                crop_img = cv2.imread(f'{img_path}')
 
                 # Preprocess the image_path
-                cleaned_image = preprocess(img_path)
+                # cleaned_image = preprocess(img_path)
 
-                text = pytesseract.image_to_string(image=cleaned_image, lang='msa+ind', config='--psm 6 --oem 3')
-                text2 = pytesseract.image_to_string(image=cleaned_image, lang='msa+ind', config='--psm 4 --oem 3')
+                text = pytesseract.image_to_string(image=crop_img, lang='msa+ind', config='--psm 6 --oem 3')
+                text2 = pytesseract.image_to_string(image=crop_img, lang='msa+ind', config='--psm 4 --oem 3')
 
                 if img_path.endswith('_1.jpg'):
+                    print(f'First column value: {text}')
                     try:
                         first_column_val = [x for x in text.split() if x == "Total" or re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
                     except IndexError:
-                        first_column_val = [x for x in text2.split() if x == "Total" or re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+                        print(f'First column value 2: {text2}')
+                        try:
+                            first_column_val = [x for x in text2.split() if x == "Total" or re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+                        except:
+                            first_column_val = None
 
                 elif img_path.endswith('_2.jpg'):
+                    print(f'Second column value: {text}')
                     try:
                         second_column_val = [x for x in text.split() if re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
                     except IndexError:
-                        second_column_val = [x for x in text2.split() if re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+                        print(f'Second column value 2: {text2}')
+                        try:
+                            second_column_val = [x for x in text2.split() if re.search(pattern="^(\d{2}\/\d{2})$", string=x)][0]
+                        except:
+                            second_column_val = None
 
                 elif img_path.endswith('_3.jpg'):
                     third_column_val_lst = [x.strip() for x in text.splitlines() if x.strip() != '' and x.strip() is not None]
@@ -305,22 +315,3 @@ def main_preprocess_ocr():
             file_name="Results_for_user.zip",
             mime="application/zip"
         )
-
-
-
-
-    # headers_content = []
-    # for image_path in glob.glob(f'{cwd_path}Preprocessed_Crop_Images\\*.jpg'):
-    #     # Read the image
-    #     image = cv2.imread(image_path)
-    #
-    #     # Check if the image name is start with 'Header' or header followed by a digit. If return not None, means true. Otherwise, false.
-    #     if re.search(pattern='^((H|h)eader\d)', string=os.path.basename(image_path).lower()) is not None:
-    #         text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 4')
-    #
-    #         headers_content.append([" ".join(x.split()) for x in text.splitlines() if any(map(str.isdigit, x)) or any(map(str.isalpha, x))])
-    #     elif re.search(pattern='^((r|R)ow_page\d)', string=os.path.basename(image_path).lower()) is not None:
-    #         text = pytesseract.image_to_string(image=image, lang='eng+ind+msa', config='--psm 6')
-
-    # # Save the header contents extracted from pytesseract
-    # save_header_content(headers_content, cwd_path)
