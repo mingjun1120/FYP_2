@@ -53,3 +53,4 @@ def main_upload_label_crop():
         # Preprocess the image and do OCR
         with st.spinner('Preprocessing and OCRing the image...'):
             main_preprocess_ocr()
+

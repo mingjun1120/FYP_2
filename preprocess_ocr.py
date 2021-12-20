@@ -306,7 +306,32 @@ def main_preprocess_ocr():
         # Create the zip file for the "Results_for_user" folder
         shutil.make_archive(base_name=f'{cwd_path}Results_for_user', format='zip', root_dir=f'{cwd_path}Results_for_user')
 
+    # Delete the images in "Crop_Images" folder
+    for image_path in glob.glob(f'{cwd_path}Crop_Images\\*.jpg'):
+        os.remove(image_path)
+
+    # Delete the "Detection_Results" folder
     shutil.rmtree(f'{cwd_path}Detection_Results')
+
+    # Delete the images in "PDF_Source" folder
+    for image_path in glob.glob(f'{cwd_path}PDF_Source\\*.jpg'):
+        os.remove(image_path)
+
+    # Delete the images in "PDF_Images" folder
+    for image_path in glob.glob(f'{cwd_path}PDF_Images\\*.jpg'):
+        os.remove(image_path)
+
+    # Delete the images in "Preprocessed_Crop_Images" folder
+    for image_path in glob.glob(f'{cwd_path}Preprocessed_Crop_Images\\*.jpg'):
+        os.remove(image_path)
+
+    # Delete the images in "Results_for_user" folder
+    for image_path in glob.glob(f'{cwd_path}Results_for_user\\*.jpg'):
+        os.remove(image_path)
+
+    # Delete the images in "Test_Image" folder
+    for image_path in glob.glob(f'{cwd_path}Test_Image\\*.jpg'):
+        os.remove(image_path)
 
     with open(f"Results_for_user.zip", "rb") as fp:
         btn = st.download_button(
